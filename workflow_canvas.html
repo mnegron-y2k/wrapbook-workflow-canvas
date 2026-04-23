@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Workflow Canvas</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --purple: #6B4EFF;
+    --purple-light: #EDE9FF;
+    --purple-mid: #C4B5FF;
+    --ink: #1A1523;
+    --ink-light: #4A4558;
+    --ink-faint: #8A8499;
+    --bg: #F8F7FC;
+    --white: #FFFFFF;
+    --border: #E2DFF0;
+    --green: #2DB87E;
+    --yellow: #F5A623;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  .page-header {
+    background: var(--purple);
+    padding: 28px 40px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .page-header::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+  }
+
+  .page-header::after {
+    content: '';
+    position: absolute;
+    bottom: -60px; left: 20%;
+    width: 300px; height: 150px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.04);
+  }
+
+  .header-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.85);
+    margin-bottom: 12px;
+  }
+
+  .header-badge::before {
+    content: '⚡';
+    font-size: 10px;
+  }
+
+  .page-header h1 {
+    font-size: 26px;
+    font-weight: 700;
+    color: white;
+    letter-spacing: -0.5px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .page-header p {
+    font-size: 14px;
+    color: rgba(255,255,255,0.75);
+    margin-top: 6px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .canvas-body {
+    padding: 28px 32px 40px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .progress-bar {
+    background: var(--border);
+    border-radius: 4px;
+    height: 4px;
+    margin-bottom: 28px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--purple), var(--purple-mid));
+    border-radius: 4px;
+    transition: width 0.4s ease;
+    width: 0%;
+  }
+
+  .section {
+    background: var(--white);
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    padding: 24px 28px;
+    margin-bottom: 16px;
+    transition: box-shadow 0.2s ease;
+  }
+
+  .section:focus-within {
+    box-shadow: 0 0 0 3px var(--purple-light), 0 2px 12px rgba(107,78,255,0.08);
+    border-color: var(--purple-mid);
+  }
+
+  .section-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+
+  .field-number {
+    background: var(--purple);
+    color: white;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: 'DM Mono', monospace;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .field-label {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.3;
+  }
+
+  .field-hint {
+    font-size: 12.5px;
+    color: var(--ink-faint);
+    margin-top: 3px;
+    line-height: 1.5;
+  }
+
+  textarea, input[type="text"] {
+    width: 100%;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    color: var(--ink);
+    background: var(--bg);
+    resize: vertical;
+    transition: border-color 0.2s, background 0.2s;
+    line-height: 1.6;
+  }
+
+  textarea:focus, input[type="text"]:focus {
+    outline: none;
+    border-color: var(--purple);
+    background: var(--white);
+  }
+
+  textarea::placeholder, input::placeholder {
+    color: var(--ink-faint);
+    font-style: italic;
+  }
+
+  .task-input {
+    font-size: 15px;
+    font-weight: 500;
+    padding: 14px 16px;
+    border-radius: 10px;
+  }
+
+  .row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .failure-modes-grid {
+    display: grid;
+    gap: 12px;
+  }
+
+  .failure-mode-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+
+  .sub-label {
+    font-size: 11.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--ink-faint);
+    margin-bottom: 6px;
+  }
+
+  .review-options {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .review-option {
+    flex: 1;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+
+  .review-option:hover {
+    border-color: var(--purple-mid);
+    background: var(--purple-light);
+  }
+
+  .review-option.selected {
+    border-color: var(--purple);
+    background: var(--purple-light);
+  }
+
+  .review-option input {
+    display: none;
+  }
+
+  .review-option-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--ink);
+    display: block;
+  }
+
+  .review-option-desc {
+    font-size: 11.5px;
+    color: var(--ink-faint);
+    margin-top: 3px;
+    display: block;
+  }
+
+  .repeatability-check {
+    display: flex;
+    gap: 10px;
+  }
+
+  .check-btn {
+    flex: 1;
+    padding: 12px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    background: var(--white);
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink-light);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .check-btn:hover {
+    border-color: var(--purple-mid);
+  }
+
+  .check-btn.yes { color: var(--green); }
+  .check-btn.no { color: var(--yellow); }
+
+  .check-btn.selected-yes {
+    border-color: var(--green);
+    background: #F0FBF6;
+    color: var(--green);
+    font-weight: 600;
+  }
+
+  .check-btn.selected-no {
+    border-color: var(--yellow);
+    background: #FFF8EE;
+    color: var(--yellow);
+    font-weight: 600;
+  }
+
+  .gap-field {
+    margin-top: 10px;
+    display: none;
+  }
+
+  .gap-field.visible {
+    display: block;
+  }
+
+  .actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+
+  .btn-primary {
+    background: var(--purple);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 13px 28px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-primary:hover {
+    background: #5B3EEF;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(107,78,255,0.3);
+  }
+
+  .btn-primary:active {
+    transform: translateY(0);
+  }
+
+  .btn-secondary {
+    background: var(--white);
+    color: var(--ink);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 24px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--purple-mid);
+    color: var(--purple);
+  }
+
+  .completion-banner {
+    background: linear-gradient(135deg, #1A1523, #2D1F5E);
+    border-radius: 14px;
+    padding: 24px 28px;
+    display: none;
+    align-items: center;
+    gap: 20px;
+    margin-top: 20px;
+  }
+
+  .completion-banner.visible {
+    display: flex;
+  }
+
+  .completion-icon {
+    font-size: 36px;
+    flex-shrink: 0;
+  }
+
+  .completion-text h3 {
+    color: white;
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .completion-text p {
+    color: rgba(255,255,255,0.65);
+    font-size: 13.5px;
+    line-height: 1.5;
+  }
+
+  .wrapbook-logo {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink-faint);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-left: auto;
+  }
+
+  @media print {
+    body { background: white; }
+    .page-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .actions, .btn-primary, .btn-secondary { display: none; }
+    .section { break-inside: avoid; }
+    .completion-banner { display: none !important; }
+  }
+
+  @media (max-width: 640px) {
+    .canvas-body { padding: 20px 16px 32px; }
+    .row-2, .failure-mode-row { grid-template-columns: 1fr; }
+    .page-header { padding: 20px 20px 18px; }
+    .page-header h1 { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div class="header-badge">AI Foundations · Guide 5</div>
+  <h1>AI Workflow Canvas</h1>
+  <p>Map your workflow. Export it. Build it.</p>
+</div>
+
+<div class="canvas-body">
+
+  <div class="progress-bar">
+    <div class="progress-fill" id="progressFill"></div>
+  </div>
+
+  <!-- Field 1 -->
+  <div class="section" data-field="1">
+    <div class="section-header">
+      <div class="field-number">1</div>
+      <div>
+        <div class="field-label">The Task</div>
+        <div class="field-hint">One sentence. Complete the phrase: "I am going to use AI to ___"</div>
+      </div>
+    </div>
+    <input type="text" class="task-input tracked-field" placeholder="I am going to use AI to…" id="field1" />
+  </div>
+
+  <!-- Field 2 -->
+  <div class="section" data-field="2">
+    <div class="section-header">
+      <div class="field-number">2</div>
+      <div>
+        <div class="field-label">Trigger</div>
+        <div class="field-hint">What starts this workflow? A schedule, an event, a specific situation?</div>
+      </div>
+    </div>
+    <textarea class="tracked-field" rows="2" placeholder="e.g. Every Monday morning before standup. Every time a ticket is marked resolved." id="field2"></textarea>
+  </div>
+
+  <!-- Fields 3 & 4 -->
+  <div class="row-2">
+    <div class="section" data-field="3">
+      <div class="section-header">
+        <div class="field-number">3</div>
+        <div>
+          <div class="field-label">Inputs</div>
+          <div class="field-hint">What raw material does AI need? List specifically.</div>
+        </div>
+      </div>
+      <textarea class="tracked-field" rows="4" placeholder="e.g. Account name, health score, open ticket count, last call notes…" id="field3"></textarea>
+    </div>
+
+    <div class="section" data-field="4">
+      <div class="section-header">
+        <div class="field-number">4</div>
+        <div>
+          <div class="field-label">Process</div>
+          <div class="field-hint">What steps does AI take? Which pattern?</div>
+        </div>
+      </div>
+      <textarea class="tracked-field" rows="4" placeholder="Step 1: …&#10;Step 2: …&#10;Step 3: …&#10;&#10;Pattern: prompt chaining / routing / evaluator-optimizer" id="field4"></textarea>
+    </div>
+  </div>
+
+  <!-- Field 5 -->
+  <div class="section" data-field="5">
+    <div class="section-header">
+      <div class="field-number">5</div>
+      <div>
+        <div class="field-label">Output</div>
+        <div class="field-hint">Define precisely: format, length, tone, and any content constraints.</div>
+      </div>
+    </div>
+    <textarea class="tracked-field" rows="3" placeholder="e.g. A short email under 150 words. Professional but warm tone. No internal SLA details. Bullet points for action items." id="field5"></textarea>
+  </div>
+
+  <!-- Field 6 -->
+  <div class="section" data-field="6">
+    <div class="section-header">
+      <div class="field-number">6</div>
+      <div>
+        <div class="field-label">Review</div>
+        <div class="field-hint">Who checks the output, what do they check for, and does the workflow pause for approval?</div>
+      </div>
+    </div>
+    <div class="review-options">
+      <label class="review-option" id="hitlBtn">
+        <input type="radio" name="reviewType" value="HITL" onchange="selectReview('HITL')">
+        <span class="review-option-title">HITL</span>
+        <span class="review-option-desc">Workflow pauses for human approval</span>
+      </label>
+      <label class="review-option" id="hotlBtn">
+        <input type="radio" name="reviewType" value="HOTL" onchange="selectReview('HOTL')">
+        <span class="review-option-title">HOTL</span>
+        <span class="review-option-desc">Workflow runs, human monitors</span>
+      </label>
+    </div>
+    <textarea class="tracked-field" rows="2" placeholder="Who reviews, what they check for, and the condition before anything goes out." id="field6"></textarea>
+  </div>
+
+  <!-- Field 7 -->
+  <div class="section" data-field="7">
+    <div class="section-header">
+      <div class="field-number">7</div>
+      <div>
+        <div class="field-label">Two Failure Modes</div>
+        <div class="field-hint">Where might this go wrong? Write a rule for each.</div>
+      </div>
+    </div>
+    <div class="failure-modes-grid">
+      <div class="failure-mode-row">
+        <div>
+          <div class="sub-label">Failure Mode 1</div>
+          <textarea class="tracked-field" rows="2" placeholder="e.g. AI invents missing context." id="field7a"></textarea>
+        </div>
+        <div>
+          <div class="sub-label">Rule to Prevent It</div>
+          <textarea class="tracked-field" rows="2" placeholder="e.g. If any input is missing, stop and list what is needed." id="field7b"></textarea>
+        </div>
+      </div>
+      <div class="failure-mode-row">
+        <div>
+          <div class="sub-label">Failure Mode 2</div>
+          <textarea class="tracked-field" rows="2" placeholder="e.g. Output tone is too formal for this audience." id="field7c"></textarea>
+        </div>
+        <div>
+          <div class="sub-label">Rule to Prevent It</div>
+          <textarea class="tracked-field" rows="2" placeholder="e.g. Always specify tone in the prompt using an example." id="field7d"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Field 8 -->
+  <div class="section" data-field="8">
+    <div class="section-header">
+      <div class="field-number">8</div>
+      <div>
+        <div class="field-label">Repeatability Check</div>
+        <div class="field-hint">Could a teammate run this next Tuesday and get the same quality output without asking you anything?</div>
+      </div>
+    </div>
+    <div class="repeatability-check">
+      <button class="check-btn yes" id="yesBtn" onclick="selectRepeatability('yes')">✓ Yes, it is ready</button>
+      <button class="check-btn no" id="noBtn" onclick="selectRepeatability('no')">Not yet</button>
+    </div>
+    <div class="gap-field" id="gapField">
+      <div class="sub-label" style="margin-top: 10px;">What is still missing?</div>
+      <textarea class="tracked-field" rows="2" placeholder="Describe what needs to be more specific or documented before a teammate could run this independently." id="field8gap"></textarea>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn-primary" onclick="exportPDF()">
+      ↓ Download as PDF
+    </button>
+    <button class="btn-secondary" onclick="clearForm()">Start Over</button>
+    <div class="wrapbook-logo">Wrapbook · AI Foundations</div>
+  </div>
+
+  <div class="completion-banner" id="completionBanner">
+    <div class="completion-icon">🎯</div>
+    <div class="completion-text">
+      <h3>Your workflow is mapped.</h3>
+      <p>Download your canvas, then head to Page 11 to build it in Claude or Dust.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const trackedFields = document.querySelectorAll('.tracked-field');
+  let reviewSelected = null;
+  let repeatabilitySelected = null;
+
+  function updateProgress() {
+    let filled = 0;
+    const total = 10;
+
+    document.querySelectorAll('.tracked-field').forEach(f => {
+      if (f.value.trim().length > 3) filled++;
+    });
+    if (reviewSelected) filled++;
+    if (repeatabilitySelected) filled++;
+
+    const pct = Math.min(100, Math.round((filled / total) * 100));
+    document.getElementById('progressFill').style.width = pct + '%';
+
+    if (pct >= 90) {
+      document.getElementById('completionBanner').classList.add('visible');
+    } else {
+      document.getElementById('completionBanner').classList.remove('visible');
+    }
+  }
+
+  trackedFields.forEach(f => {
+    f.addEventListener('input', updateProgress);
+  });
+
+  function selectReview(type) {
+    reviewSelected = type;
+    document.getElementById('hitlBtn').classList.toggle('selected', type === 'HITL');
+    document.getElementById('hotlBtn').classList.toggle('selected', type === 'HOTL');
+    updateProgress();
+  }
+
+  function selectRepeatability(val) {
+    repeatabilitySelected = val;
+    document.getElementById('yesBtn').className = 'check-btn yes' + (val === 'yes' ? ' selected-yes' : '');
+    document.getElementById('noBtn').className = 'check-btn no' + (val === 'no' ? ' selected-no' : '');
+    document.getElementById('gapField').classList.toggle('visible', val === 'no');
+    updateProgress();
+  }
+
+  function clearForm() {
+    if (!confirm('Clear all fields and start over?')) return;
+    document.querySelectorAll('.tracked-field').forEach(f => f.value = '');
+    reviewSelected = null;
+    repeatabilitySelected = null;
+    document.getElementById('hitlBtn').classList.remove('selected');
+    document.getElementById('hotlBtn').classList.remove('selected');
+    document.getElementById('yesBtn').className = 'check-btn yes';
+    document.getElementById('noBtn').className = 'check-btn no';
+    document.getElementById('gapField').classList.remove('visible');
+    document.getElementById('completionBanner').classList.remove('visible');
+    updateProgress();
+  }
+
+  function exportPDF() {
+    window.print();
+  }
+</script>
+
+</body>
+</html>
