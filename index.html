@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PAS Diagnostic Simulation</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f1f5f9; }
+    textarea { font-family: system-ui, -apple-system, sans-serif; }
+    ul { padding-left: 18px; }
+    li { margin-bottom: 3px; line-height: 1.5; font-size: 12px; color: #374151; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+const contextNotes = [
+  { label: "Account Type", value: "PAS Client" },
+  { label: "Production Accounting", value: "Yes" },
+  { label: "Project Phase", value: "Active production" },
+  { label: "Open Bugs (AP Invoices)", value: "None flagged" },
+];
+
+function evaluate(response) {
+  const lower = response.toLowerCase();
+
+  const checks = [
+    { key: "error_message", terms: ["error message", "what error", "error say", "screenshot", "specific error", "error does it", "error are you seeing"], label: "asks for the specific error message" },
+    { key: "period", terms: ["which period", "what period", "posting period", "period open", "period closed", "period is open", "the period"], label: "asks about period status" },
+    { key: "status", terms: ["invoice status", "status of the invoice", "draft", "approved", "approval status", "current status of"], label: "asks about invoice status (draft/approved)" },
+    { key: "tried", terms: ["already tried", "have you tried", "what have you done", "steps you", "troubleshooting", "attempted", "what you've tried"], label: "asks what they've already tried" },
+    { key: "restate", terms: ["sounds like", "it sounds", "understand that", "i understand", "what i'm hearing", "to confirm", "just to clarify", "so you're", "you're saying", "understand the issue"], label: "restates the issue back to the customer" },
+  ];
+
+  const hits = checks.filter(c => c.terms.some(t => lower.includes(t)));
+
+  const solutionTerms = [
+    "try refreshing", "clear your cache", "log out and log back", "contact your admin",
+    "re-enter", "delete and re", "create a new invoice", "void the invoice",
+    "the fix is", "i can fix", "we can fix", "you need to go to", "you should go to",
+    "make sure the period is open", "open the period",
+  ];
+  const jumped = solutionTerms.some(s => lower.includes(s));
+  const urgencyAck = ["understand the urgency", "time-sensitive", "know this is urgent", "i know you need this", "i hear you", "right away", "priority"].some(t => lower.includes(t));
+
+  const count = hits.length;
+  let score = 1;
+  let passed = false;
+
+  if (!jumped && count >= 2) {
+    passed = true;
+    score = count >= 4 ? 5 : count === 3 ? 4 : 3;
+  } else if (jumped) {
+    score = 1;
+  } else {
+    score = 2;
+  }
+
+  const well = [];
+  const improve = [];
+
+  if (count >= 2) well.push("Asked multiple diagnostic questions before suggesting a fix");
+  if (hits.find(h => h.key === "restate")) well.push("Restated the issue back to the customer");
+  if (urgencyAck) well.push("Acknowledged the customer's urgency");
+  if (hits.find(h => h.key === "error_message")) well.push("Asked for the specific error message");
+  if (hits.find(h => h.key === "period")) well.push("Asked about period status");
+  if (hits.find(h => h.key === "status")) well.push("Asked about the invoice's current status");
+  if (hits.find(h => h.key === "tried")) well.push("Asked what steps the customer has already tried");
+
+  if (jumped) improve.push("Avoid suggesting fixes before gathering information — the root cause isn't known yet");
+  if (count < 2) improve.push("Ask at least 2 diagnostic questions before moving toward a solution");
+  const missed = checks.filter(c => !hits.find(h => h.key === c.key));
+  missed.slice(0, 2).forEach(m => improve.push("Consider: " + m.label));
+  if (!urgencyAck) improve.push("Acknowledge the time pressure — the customer mentioned period close today");
+  if (!hits.find(h => h.key === "restate")) improve.push("Restate the issue back to the customer to confirm your understanding");
+
+  let summary = "";
+  if (passed && count >= 4) {
+    summary = "Excellent diagnostic approach. You gathered the information needed to actually diagnose this issue before acting. This is exactly the right instinct in PAS.";
+  } else if (passed) {
+    summary = "Good start — you asked the right diagnostic questions and held back from jumping to conclusions. A couple more questions would cover all your bases.";
+  } else if (jumped) {
+    summary = "This response jumps to solutions before gathering the information needed to diagnose the issue. In PAS, acting without full context can make things worse — especially near period close. Gather the facts first.";
+  } else {
+    summary = "You're headed in the right direction but didn't ask enough diagnostic questions. You're still missing key details: the error message, period status, invoice status, and what they've already tried.";
+  }
+
+  return { passed, score, what_went_well: well, what_to_improve: improve, summary, completion_code: passed ? "PAS-DIAG-PASS" : null };
+}
+
+function App() {
+  const [draft, setDraft] = React.useState("");
+  const [result, setResult] = React.useState(null);
+  const [contextOpen, setContextOpen] = React.useState(false);
+  const [attempt, setAttempt] = React.useState(1);
+
+  const words = draft.trim().split(/\s+/).filter(Boolean).length;
+  const canSubmit = draft.trim().length >= 20;
+
+  function handleSubmit() {
+    if (!canSubmit) return;
+    setResult(evaluate(draft));
+  }
+
+  function handleRetry() {
+    setDraft("");
+    setResult(null);
+    setAttempt(a => a + 1);
+  }
+
+  const barColor = (s) => s >= 4 ? "#16a34a" : s === 3 ? "#b45309" : "#dc2626";
+
+  return (
+    <div style={{ fontFamily: "system-ui,-apple-system,sans-serif", backgroundColor: "#f1f5f9", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+
+      {/* Nav */}
+      <div style={{ backgroundColor: "#032d60", padding: "0 20px", height: "44px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div style={{ width: "26px", height: "26px", backgroundColor: "#00a1e0", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+          </div>
+          <span style={{ color: "white", fontSize: "13px", fontWeight: 600 }}>Service Console</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span style={{ backgroundColor: "#0369a1", color: "white", fontSize: "10px", padding: "2px 8px", borderRadius: "10px", fontWeight: 700, letterSpacing: "0.5px" }}>TRAINING MODE</span>
+          <span style={{ color: "#93c5fd", fontSize: "11px" }}>Attempt {attempt}</span>
+        </div>
+      </div>
+
+      {/* Case Bar */}
+      <div style={{ backgroundColor: "white", borderBottom: "1px solid #e2e8f0", padding: "10px 20px", display: "flex", alignItems: "center", gap: "12px", flexShrink: 0 }}>
+        <span style={{ fontSize: "11px", backgroundColor: "#dbeafe", color: "#1d4ed8", padding: "2px 8px", borderRadius: "4px", fontWeight: 700 }}>CASE #00147823</span>
+        <span style={{ fontSize: "13px", fontWeight: 600, color: "#1e293b" }}>Unable to post AP invoice — urgent</span>
+        <div style={{ marginLeft: "auto", display: "flex", gap: "6px" }}>
+          <span style={{ fontSize: "10px", backgroundColor: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d", padding: "2px 8px", borderRadius: "4px", fontWeight: 700 }}>HIGH PRIORITY</span>
+          <span style={{ fontSize: "10px", backgroundColor: "#dcfce7", color: "#166534", border: "1px solid #86efac", padding: "2px 8px", borderRadius: "4px", fontWeight: 700 }}>OPEN</span>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div style={{ display: "flex", flex: 1, overflow: "hidden", minHeight: 0 }}>
+
+        {/* Sidebar */}
+        <div style={{ width: "200px", flexShrink: 0, backgroundColor: "white", borderRight: "1px solid #e2e8f0", padding: "16px", overflowY: "auto" }}>
+          <div style={{ marginBottom: "18px" }}>
+            <div style={{ fontSize: "10px", textTransform: "uppercase", color: "#94a3b8", fontWeight: 700, letterSpacing: "0.8px", marginBottom: "8px" }}>Contact</div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div style={{ width: "30px", height: "30px", borderRadius: "50%", backgroundColor: "#dbeafe", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <span style={{ fontSize: "12px", fontWeight: 700, color: "#1d4ed8" }}>JL</span>
+              </div>
+              <div>
+                <div style={{ fontSize: "12px", fontWeight: 600, color: "#1e293b" }}>Jamie L.</div>
+                <div style={{ fontSize: "11px", color: "#64748b" }}>AP Manager</div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: "18px" }}>
+            <div style={{ fontSize: "10px", textTransform: "uppercase", color: "#94a3b8", fontWeight: 700, letterSpacing: "0.8px", marginBottom: "6px" }}>Account</div>
+            <div style={{ fontSize: "12px", fontWeight: 600, color: "#1e293b" }}>Meridian Film Group</div>
+            <div style={{ fontSize: "11px", color: "#64748b" }}>Enterprise</div>
+          </div>
+
+          <div>
+            <button onClick={() => setContextOpen(o => !o)}
+              style={{ width: "100%", background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+              <span style={{ fontSize: "10px", textTransform: "uppercase", color: "#94a3b8", fontWeight: 700, letterSpacing: "0.8px" }}>Account Notes</span>
+              <span style={{ fontSize: "10px", color: "#94a3b8" }}>{contextOpen ? "▲" : "▼"}</span>
+            </button>
+            {!contextOpen && <div style={{ fontSize: "11px", color: "#94a3b8", fontStyle: "italic" }}>Click to view</div>}
+            {contextOpen && (
+              <div style={{ backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "6px", padding: "8px" }}>
+                {contextNotes.map((n, i) => (
+                  <div key={i} style={{ marginBottom: i < contextNotes.length - 1 ? "8px" : 0 }}>
+                    <div style={{ fontSize: "10px", color: "#94a3b8", fontWeight: 600 }}>{n.label}</div>
+                    <div style={{ fontSize: "11px", color: "#374151", fontWeight: 500 }}>{n.value}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Main */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+
+          {/* Feed */}
+          <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
+
+            {/* Banner */}
+            <div style={{ backgroundColor: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "8px", padding: "10px 14px", marginBottom: "16px", display: "flex", gap: "10px", alignItems: "flex-start" }}>
+              <svg style={{ flexShrink: 0, marginTop: "1px" }} width="15" height="15" viewBox="0 0 24 24" fill="#3b82f6"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+              <div>
+                <div style={{ fontSize: "12px", fontWeight: 700, color: "#1d4ed8", marginBottom: "2px" }}>Training Simulation — PAS Diagnostic Skills</div>
+                <div style={{ fontSize: "12px", color: "#374151", lineHeight: "1.5" }}>Read the customer message and write your first reply. Your goal is to <strong>diagnose before you solve</strong> — show that you know what information is still missing.</div>
+              </div>
+            </div>
+
+            {/* Customer Message */}
+            <div style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
+              <div style={{ width: "34px", height: "34px", borderRadius: "50%", backgroundColor: "#dbeafe", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <span style={{ fontSize: "13px", fontWeight: 700, color: "#1d4ed8" }}>JL</span>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                  <span style={{ fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>Jamie L.</span>
+                  <span style={{ fontSize: "11px", color: "#94a3b8" }}>Today at 2:41 PM</span>
+                  <span style={{ fontSize: "10px", backgroundColor: "#fef3c7", color: "#92400e", padding: "1px 6px", borderRadius: "3px", fontWeight: 600 }}>Customer</span>
+                </div>
+                <div style={{ backgroundColor: "white", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "14px 16px", boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
+                  <p style={{ marginBottom: "10px", fontSize: "13px", lineHeight: "1.6", color: "#374151" }}>Hi,</p>
+                  <p style={{ marginBottom: "10px", fontSize: "13px", lineHeight: "1.6", color: "#374151" }}>I've been trying to post an invoice for the past hour and it keeps giving me an error. The vendor is set up, the amount is correct, and I've done this a hundred times before.</p>
+                  <p style={{ margin: 0, fontSize: "13px", lineHeight: "1.6", color: "#374151" }}>I really need this posted before we close the period today. Can you help me fix this ASAP?</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Feedback */}
+            {result && (
+              <div style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
+                <div style={{ width: "34px", height: "34px", borderRadius: "50%", backgroundColor: result.passed ? "#dcfce7" : "#fee2e2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: "16px", fontWeight: 700, color: result.passed ? "#16a34a" : "#dc2626" }}>
+                  {result.passed ? "✓" : "✗"}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                    <span style={{ fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>AI Coach Feedback</span>
+                    <span style={{ fontSize: "10px", backgroundColor: "#f0fdf4", color: "#15803d", padding: "1px 6px", borderRadius: "3px", fontWeight: 600, border: "1px solid #bbf7d0" }}>Automated</span>
+                  </div>
+                  <div style={{ backgroundColor: result.passed ? "#f0fdf4" : "#fff7f7", border: "1px solid " + (result.passed ? "#bbf7d0" : "#fecaca"), borderRadius: "8px", padding: "16px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px", paddingBottom: "12px", borderBottom: "1px solid #e2e8f0" }}>
+                      <div style={{ flex: 1, height: "6px", backgroundColor: "#e2e8f0", borderRadius: "3px", overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: ((result.score / 5) * 100) + "%", backgroundColor: barColor(result.score), borderRadius: "3px" }} />
+                      </div>
+                      <span style={{ fontSize: "12px", fontWeight: 700, color: barColor(result.score), minWidth: "32px" }}>{result.score}/5</span>
+                      <span style={{ fontSize: "12px", fontWeight: 700, color: result.passed ? "#16a34a" : "#dc2626" }}>{result.passed ? "PASSED" : "NOT YET"}</span>
+                    </div>
+                    <p style={{ fontSize: "13px", color: "#374151", lineHeight: "1.6", marginBottom: "12px" }}>{result.summary}</p>
+                    {result.what_went_well.length > 0 && (
+                      <div style={{ marginBottom: "10px" }}>
+                        <div style={{ fontSize: "11px", fontWeight: 700, color: "#15803d", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "5px" }}>What Worked</div>
+                        <ul>{result.what_went_well.map((item, i) => <li key={i}>{item}</li>)}</ul>
+                      </div>
+                    )}
+                    {result.what_to_improve.length > 0 && (
+                      <div style={{ marginBottom: result.completion_code ? "14px" : 0 }}>
+                        <div style={{ fontSize: "11px", fontWeight: 700, color: result.passed ? "#0369a1" : "#b91c1c", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "5px" }}>
+                          {result.passed ? "To Make It Even Stronger" : "What to Work On"}
+                        </div>
+                        <ul>{result.what_to_improve.map((item, i) => <li key={i}>{item}</li>)}</ul>
+                      </div>
+                    )}
+                    {result.completion_code && (
+                      <div style={{ marginTop: "14px", backgroundColor: "white", border: "2px solid #16a34a", borderRadius: "8px", padding: "12px", textAlign: "center" }}>
+                        <div style={{ fontSize: "10px", color: "#64748b", fontWeight: 600, marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.8px" }}>Completion Code</div>
+                        <div style={{ fontSize: "24px", fontWeight: 800, color: "#15803d", letterSpacing: "3px", fontFamily: "monospace" }}>{result.completion_code}</div>
+                        <div style={{ fontSize: "11px", color: "#64748b", marginTop: "4px" }}>Enter this code in WorkRamp to mark this activity complete.</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Reply Box */}
+          <div style={{ backgroundColor: "white", borderTop: "1px solid #e2e8f0", padding: "14px 20px", flexShrink: 0 }}>
+            {!result ? (
+              <div style={{ border: "1px solid #d1d5db", borderRadius: "8px", overflow: "hidden" }}>
+                <div style={{ backgroundColor: "#f8fafc", padding: "7px 12px", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ fontSize: "11px", color: "#64748b", fontWeight: 600 }}>To:</span>
+                  <span style={{ fontSize: "11px", color: "#374151", backgroundColor: "#e0e7ff", padding: "1px 7px", borderRadius: "3px" }}>Jamie L. — Meridian Film Group</span>
+                </div>
+                <textarea
+                  value={draft}
+                  onChange={e => setDraft(e.target.value)}
+                  placeholder="Write your reply here. Diagnose before you solve."
+                  style={{ width: "100%", minHeight: "110px", padding: "10px 12px", border: "none", outline: "none", fontSize: "13px", lineHeight: "1.6", color: "#374151", resize: "vertical", display: "block", backgroundColor: "white" }}
+                />
+                <div style={{ backgroundColor: "#f8fafc", padding: "7px 12px", borderTop: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: "11px", color: "#94a3b8" }}>{words} word{words !== 1 ? "s" : ""}{words < 10 ? " — write at least a few sentences" : ""}</span>
+                  <button onClick={handleSubmit} disabled={!canSubmit}
+                    style={{ backgroundColor: canSubmit ? "#032d60" : "#cbd5e1", color: "white", border: "none", borderRadius: "6px", padding: "7px 18px", fontSize: "13px", fontWeight: 600, cursor: canSubmit ? "pointer" : "not-allowed" }}>
+                    Submit Reply
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                {!result.passed ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <span style={{ fontSize: "13px", color: "#64748b" }}>Review the feedback above, then try again.</span>
+                    <button onClick={handleRetry}
+                      style={{ backgroundColor: "#032d60", color: "white", border: "none", borderRadius: "6px", padding: "7px 18px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>
+                      Try Again
+                    </button>
+                  </div>
+                ) : (
+                  <span style={{ fontSize: "13px", color: "#15803d", fontWeight: 600 }}>Copy the completion code above and enter it in WorkRamp.</span>
+                )}
+                <span style={{ fontSize: "11px", color: "#94a3b8" }}>Attempt {attempt}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+</script>
+</body>
+</html>
