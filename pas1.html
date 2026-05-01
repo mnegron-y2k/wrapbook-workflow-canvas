@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PAS Support Simulation — Wrapbook</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  background: #fff;
+  color: #111827;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.wrap {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+}
+
+.page-header {
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 20px;
+}
+.page-header .kicker {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+.page-header h1 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+}
+.page-header .subtitle {
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.thread-chrome {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.thread-top {
+  background: #f9fafb;
+  padding: 10px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.thread-subject {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.thread-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 10px;
+  background: #d1fae5;
+  color: #065f46;
+  flex-shrink: 0;
+  transition: background .3s, color .3s;
+}
+.thread-badge.closed {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.messages {
+  min-height: 280px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: #fff;
+  scroll-behavior: smooth;
+}
+
+.msg {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+}
+.msg.learner { flex-direction: row-reverse; }
+
+.av {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.av-j { background: #e5e7eb; color: #374151; }
+.av-y { background: #dbeafe; color: #1d4ed8; }
+
+.msg-inner { max-width: calc(100% - 42px); }
+.sender {
+  font-size: 11px;
+  font-weight: 600;
+  color: #9ca3af;
+  margin-bottom: 3px;
+}
+.msg.learner .sender { text-align: right; }
+
+.bubble {
+  padding: 9px 13px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.bub-j {
+  background: #f3f4f6;
+  color: #1f2937;
+  border-top-left-radius: 3px;
+}
+.bub-y {
+  background: #eff6ff;
+  color: #1e3a5f;
+  border-top-right-radius: 3px;
+}
+
+.typing-row {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+}
+.typing-dots {
+  background: #f3f4f6;
+  padding: 11px 14px;
+  border-radius: 12px;
+  border-top-left-radius: 3px;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.dot {
+  width: 5px;
+  height: 5px;
+  background: #9ca3af;
+  border-radius: 50%;
+  animation: blink 1.2s infinite ease-in-out;
+}
+.dot:nth-child(2) { animation-delay: .2s; }
+.dot:nth-child(3) { animation-delay: .4s; }
+@keyframes blink {
+  0%, 60%, 100% { transform: translateY(0); opacity: .8; }
+  30% { transform: translateY(-5px); opacity: .4; }
+}
+
+.composer {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.composer-label {
+  background: #f9fafb;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.you-badge {
+  width: 20px;
+  height: 20px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.composer-row { display: flex; }
+
+textarea#reply {
+  flex: 1;
+  border: none;
+  padding: 11px 13px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: none;
+  min-height: 76px;
+  outline: none;
+  color: #1f2937;
+  line-height: 1.5;
+  background: #fff;
+}
+textarea#reply::placeholder { color: #9ca3af; }
+textarea#reply:disabled { background: #f9fafb; cursor: not-allowed; }
+
+#sendBtn {
+  padding: 0 18px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-left: 1px solid #1d4ed8;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s;
+  min-width: 70px;
+  flex-shrink: 0;
+}
+#sendBtn:hover:not(:disabled) { background: #1d4ed8; }
+#sendBtn:disabled {
+  background: #93c5fd;
+  border-left-color: #93c5fd;
+  cursor: not-allowed;
+}
+
+.shortcut-hint {
+  font-size: 11px;
+  color: #9ca3af;
+  padding: 5px 13px 7px;
+  background: #f9fafb;
+  border-top: 1px solid #f3f4f6;
+}
+
+.actions-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 28px;
+}
+#resolveBtn {
+  padding: 8px 18px;
+  background: #16a34a;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s;
+}
+#resolveBtn:hover:not(:disabled) { background: #15803d; }
+#resolveBtn:disabled {
+  background: #bbf7d0;
+  color: #6ee7b7;
+  cursor: not-allowed;
+}
+
+#result {
+  display: none;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.res-banner {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.res-banner.pass { background: #f0fdf4; border-bottom: 1px solid #bbf7d0; }
+.res-banner.fail { background: #fffbeb; border-bottom: 1px solid #fde68a; }
+
+.res-verdict { font-size: 16px; font-weight: 700; }
+.res-banner.pass .res-verdict { color: #15803d; }
+.res-banner.fail .res-verdict { color: #b45309; }
+
+.res-sub { font-size: 13px; margin-top: 2px; }
+.res-banner.pass .res-sub { color: #16a34a; }
+.res-banner.fail .res-sub { color: #d97706; }
+
+.score-block { text-align: right; flex-shrink: 0; }
+.score-num { font-size: 32px; font-weight: 800; line-height: 1; }
+.res-banner.pass .score-num { color: #16a34a; }
+.res-banner.fail .score-num { color: #d97706; }
+.score-denom { font-size: 13px; color: #9ca3af; }
+
+.res-body { padding: 20px; background: #fff; }
+
+.prog-wrap { margin-bottom: 20px; }
+.prog-lbl { font-size: 12px; color: #6b7280; font-weight: 500; margin-bottom: 6px; }
+.prog-track { height: 7px; background: #f3f4f6; border-radius: 4px; overflow: hidden; }
+.prog-fill {
+  height: 100%;
+  border-radius: 4px;
+  width: 0;
+  transition: width 1.1s cubic-bezier(.22,.61,.36,1);
+}
+.prog-fill.pass { background: linear-gradient(90deg, #22c55e, #16a34a); }
+.prog-fill.fail { background: linear-gradient(90deg, #fbbf24, #d97706); }
+
+.fb-section { margin-bottom: 16px; }
+.fb-heading {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: #9ca3af;
+  margin-bottom: 7px;
+}
+.fb-item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.55;
+  padding: 4px 0;
+}
+.fb-icon { flex-shrink: 0; margin-top: 1px; }
+
+.summary-line {
+  font-size: 14px;
+  font-style: italic;
+  color: #4b5563;
+  padding-top: 14px;
+  margin-top: 14px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.code-box {
+  margin-top: 18px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 18px 16px;
+  text-align: center;
+}
+.code-box-title { font-size: 14px; font-weight: 600; color: #166534; margin-bottom: 12px; }
+.code-value {
+  display: inline-block;
+  font-family: 'Courier New', monospace;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  color: #166534;
+  background: #fff;
+  border: 1.5px dashed #86efac;
+  padding: 10px 24px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+.code-inst { font-size: 13px; color: #16a34a; line-height: 1.5; }
+
+#tryAgainBtn {
+  display: block;
+  width: 100%;
+  padding: 11px;
+  background: #fff;
+  border: 1.5px solid #fbbf24;
+  color: #92400e;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 18px;
+  transition: background .15s;
+}
+#tryAgainBtn:hover { background: #fffbeb; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page-header">
+    <div class="kicker">Wrapbook · WorkRamp Training Simulation</div>
+    <h1>PAS Support: Report Mismatch</h1>
+    <p class="subtitle">You are a Wrapbook support rep. Help Jack resolve his PAS issue.</p>
+  </header>
+
+  <div class="thread-chrome">
+    <div class="thread-top">
+      <span class="thread-subject">Budget/EFC vs Cost Report mismatch in PAS</span>
+      <span class="thread-badge" id="threadBadge">Open</span>
+    </div>
+    <div class="messages" id="messages"></div>
+  </div>
+
+  <div class="composer" id="composer">
+    <div class="composer-label">
+      <span class="you-badge">Y</span>
+      Your reply
+    </div>
+    <div class="composer-row">
+      <textarea id="reply" placeholder="Type your reply to Jack…" rows="4"></textarea>
+      <button id="sendBtn" onclick="sendMessage()">Send</button>
+    </div>
+    <div class="shortcut-hint">⌘ Enter to send</div>
+  </div>
+
+  <div class="actions-row">
+    <button id="resolveBtn" disabled onclick="markResolved()">✓ Mark as resolved</button>
+  </div>
+
+  <div id="result"></div>
+
+</div>
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  JACK'S SCRIPTED RESPONSES — no API key required
+// ═══════════════════════════════════════════════════════════════
+
+const JACK_OPENING = `Hi there, thanks for getting back to me. I'm seeing a pretty significant discrepancy between my Budget/EFC numbers and my Cost Report in PAS — they should be matching up but they're quite a bit off. I've been going through it for a while and I genuinely can't figure out what I'm missing. Any help would be really appreciated.`;
+
+const R = {
+  generalFilter:
+    `Honestly, I just ran it without really adjusting anything from the defaults. I'm not totally sure what I should be looking for — is there a particular setting that usually causes this kind of difference?`,
+
+  period:
+    `The period looks right to me — it's set to the same episode block I always use. I don't think the date range is the issue.`,
+
+  escalation:
+    `Oh — do you think it could actually be a system error? That sounds serious. I really hope nothing is wrong with our data...`,
+
+  distOnly:
+    `Hmm — actually, now that you mention it, I don't think I had Distribution Changes checked in my GL filter. I didn't realize that would affect the totals like this. I'll add it... the numbers are a bit closer now but still not fully matching up.`,
+
+  centsOnly:
+    `Show Cents — let me check... you're right, that was turned off. I've turned it on. It's better but there's still a gap. Something else must be off too.`,
+
+  bothAtOnce:
+    `Oh — now that you mention it, I don't think Distribution Changes was checked in my filter, and Show Cents was definitely turned off too. I just corrected both... and yes, the numbers are reconciling now. I can't believe it was just the settings this whole time. Thank you so much.`,
+
+  distAfterCents:
+    `Right — Distribution Changes. I just added that to the filter too. Both are updated now... and yes, everything is matching up. That was it! Really appreciate your patience with me.`,
+
+  centsAfterDist:
+    `Show Cents — yes, that was off too. I turned it on... and the numbers are looking right now. That fixed it! Thank you so much.`,
+
+  postResolved:
+    `Ha — no, thank you. I'll make sure to double-check those settings before running reports going forward. Really appreciate the quick turnaround.`,
+
+  vague: [
+    `I've run this same report every cycle and it's always matched before. Something definitely changed but I can't pinpoint what.`,
+    `It's off by more than rounding — the gap is consistent across multiple line items. I'm not sure where to start looking.`,
+    `I've double-checked the figures a couple of times and they're consistently mismatched. Could it be something with how I set up the report?`
+  ]
+};
+
+// ── Jack's conversation state ─────────────────────────────────
+let jackState = {
+  distRevealed:   false,
+  centsRevealed:  false,
+  resolutionSent: false,
+  vagueIndex:     0
+};
+
+// ── Keyword helpers ───────────────────────────────────────────
+function mentionsDist(m)       { return /distribution.?change/.test(m); }
+function mentionsCents(m)      { return /show.?cent/.test(m); }
+function mentionsFilter(m)     { return /\bfilter\b|\bsetting|\boption\b|\bselect|\bcheckbox|\bcheck\b|\bconfigur|\bprefer|\breport.*set/.test(m); }
+function mentionsPeriod(m)     { return /\bperiod\b|\bdate.?range\b|\bweek\b|\bepisode\b/.test(m); }
+function mentionsEscalation(m) { return /\bescalat|\bbug\b|\bbroken\b|system.?error|something.?wrong|\bspecialist\b|\bengineering\b|pas team/.test(m); }
+
+// ── Response picker ───────────────────────────────────────────
+function getJackResponse(rawMsg) {
+  const m = rawMsg.toLowerCase();
+
+  if (jackState.resolutionSent) return R.postResolved;
+
+  const dist  = mentionsDist(m);
+  const cents = mentionsCents(m);
+
+  if (dist && cents) {
+    jackState.distRevealed = jackState.centsRevealed = jackState.resolutionSent = true;
+    return R.bothAtOnce;
+  }
+  if (dist && !jackState.distRevealed) {
+    jackState.distRevealed = true;
+    if (jackState.centsRevealed) { jackState.resolutionSent = true; return R.distAfterCents; }
+    return R.distOnly;
+  }
+  if (cents && !jackState.centsRevealed) {
+    jackState.centsRevealed = true;
+    if (jackState.distRevealed) { jackState.resolutionSent = true; return R.centsAfterDist; }
+    return R.centsOnly;
+  }
+  if (mentionsFilter(m) && !mentionsEscalation(m)) return R.generalFilter;
+  if (mentionsPeriod(m)) return R.period;
+  if (mentionsEscalation(m)) return R.escalation;
+
+  const reply = R.vague[jackState.vagueIndex % R.vague.length];
+  jackState.vagueIndex++;
+  return reply;
+}
+
+function typingDelay(text) { return Math.min(600 + text.length * 2, 1400); }
+
+// ═══════════════════════════════════════════════════════════════
+//  APP STATE
+// ═══════════════════════════════════════════════════════════════
+let learnerMsgs = [];
+let exchanges   = 0;
+let waiting     = false;
+let resolved    = false;
+
+// ═══════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════
+function init() {
+  jackState = { distRevealed: false, centsRevealed: false, resolutionSent: false, vagueIndex: 0 };
+  learnerMsgs = [];
+  exchanges = 0;
+  waiting = false;
+  resolved = false;
+
+  document.getElementById('messages').innerHTML     = '';
+  document.getElementById('reply').value            = '';
+  document.getElementById('reply').disabled         = false;
+  document.getElementById('sendBtn').disabled       = false;
+  document.getElementById('resolveBtn').disabled    = true;
+  document.getElementById('resolveBtn').textContent = '✓ Mark as resolved';
+  document.getElementById('threadBadge').textContent = 'Open';
+  document.getElementById('threadBadge').className   = 'thread-badge';
+  document.getElementById('result').style.display    = 'none';
+  document.getElementById('result').innerHTML        = '';
+
+  addBubble('jack', JACK_OPENING);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  BUBBLE RENDERING
+// ═══════════════════════════════════════════════════════════════
+function addBubble(role, text) {
+  const wrap = document.getElementById('messages');
+  const row  = document.createElement('div');
+  row.className = 'msg ' + role;
+
+  const av = document.createElement('div');
+  av.className  = 'av ' + (role === 'jack' ? 'av-j' : 'av-y');
+  av.textContent = role === 'jack' ? 'J' : 'Y';
+
+  const inner = document.createElement('div');
+  inner.className = 'msg-inner';
+
+  const sender = document.createElement('div');
+  sender.className  = 'sender';
+  sender.textContent = role === 'jack' ? 'Jack Mercer' : 'You';
+
+  const bub = document.createElement('div');
+  bub.className  = 'bubble ' + (role === 'jack' ? 'bub-j' : 'bub-y');
+  bub.textContent = text;
+
+  inner.appendChild(sender);
+  inner.appendChild(bub);
+  row.appendChild(av);
+  row.appendChild(inner);
+  wrap.appendChild(row);
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+function showTyping() {
+  const wrap = document.getElementById('messages');
+  const row  = document.createElement('div');
+  row.className = 'typing-row';
+  row.id = 'typingRow';
+
+  const av = document.createElement('div');
+  av.className  = 'av av-j';
+  av.textContent = 'J';
+
+  const dots = document.createElement('div');
+  dots.className = 'typing-dots';
+  dots.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+
+  row.appendChild(av);
+  row.appendChild(dots);
+  wrap.appendChild(row);
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+function hideTyping() {
+  const el = document.getElementById('typingRow');
+  if (el) el.remove();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SEND MESSAGE
+// ═══════════════════════════════════════════════════════════════
+function sendMessage() {
+  if (waiting || resolved) return;
+
+  const replyEl = document.getElementById('reply');
+  const text    = replyEl.value.trim();
+  if (!text) return;
+
+  addBubble('learner', text);
+  learnerMsgs.push(text);
+  replyEl.value = '';
+
+  waiting = true;
+  document.getElementById('sendBtn').disabled = true;
+  replyEl.disabled = true;
+  showTyping();
+
+  const jackReply = getJackResponse(text);
+  const delay     = typingDelay(jackReply);
+
+  setTimeout(function() {
+    hideTyping();
+    addBubble('jack', jackReply);
+
+    exchanges++;
+    if (exchanges >= 2) {
+      document.getElementById('resolveBtn').disabled = false;
+    }
+
+    waiting = false;
+    document.getElementById('sendBtn').disabled = false;
+    replyEl.disabled = false;
+    replyEl.focus();
+  }, delay);
+}
+
+document.getElementById('reply').addEventListener('keydown', function(e) {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  MARK AS RESOLVED
+// ═══════════════════════════════════════════════════════════════
+function markResolved() {
+  if (resolved) return;
+  resolved = true;
+
+  document.getElementById('reply').disabled         = true;
+  document.getElementById('sendBtn').disabled       = true;
+  document.getElementById('resolveBtn').disabled    = true;
+  document.getElementById('resolveBtn').textContent = '✓ Resolved';
+  document.getElementById('threadBadge').textContent = 'Resolved';
+  document.getElementById('threadBadge').className   = 'thread-badge closed';
+
+  renderResult(runScoring(learnerMsgs));
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SCORING
+// ═══════════════════════════════════════════════════════════════
+function runScoring(msgs) {
+  if (!msgs.length) {
+    return { total: 0, pass: false, strengths: [], improvements: [],
+      summary: "Every attempt builds your instincts. Focus on asking about filter settings first next time, and you'll see a big jump in your score." };
+  }
+
+  const first = msgs[0].toLowerCase();
+  const all   = msgs.join(' ').toLowerCase();
+  let total = 0;
+  const strengths = [], improvements = [];
+
+  // 1. Warm acknowledgment (15 pts)
+  const warmWords = ['understand','hear you','sounds stressful',"don't worry",'happy to help',
+    'thanks for reaching out',"let's figure this out","let's take a look",'appreciate',
+    'glad you',"i can help",'happy to assist','no worries','totally understand'];
+  const hasWarm = warmWords.some(w => first.includes(w));
+  const ackPts  = hasWarm ? 15 : 5;
+  total += ackPts;
+  if (hasWarm) {
+    strengths.push("You opened with empathy and made Jack feel heard right away — that sets the tone for the whole interaction.");
+  } else {
+    improvements.push("Try opening with a brief acknowledgment before jumping into questions. Something as simple as 'Thanks for reaching out — let's figure this out together' goes a long way.");
+  }
+
+  // 2. Diagnostic questions (25 pts)
+  const hasDist    = /distribution.?change/.test(all);
+  const hasCents   = /show.?cent/.test(all);
+  const hasGeneral = /\bfilter\b|\bsetting\b|\boption\b|\bselected\b|\bchecked\b|what do you have|which period|what period/.test(all);
+  let diagPts = 0;
+  if (hasDist && hasCents) {
+    diagPts = 25;
+    strengths.push("You asked about both Distribution Changes and Show Cents — those are exactly the right diagnostic questions for a report mismatch.");
+  } else if (hasDist && !hasCents) {
+    diagPts = 18;
+    strengths.push("You asked about Distribution Changes — that's one of the two key diagnostic questions for this type of mismatch.");
+    improvements.push("You got Distribution Changes — next time also ask about Show Cents, which is the other setting causing this discrepancy.");
+  } else if (!hasDist && hasCents) {
+    diagPts = 18;
+    strengths.push("You asked about Show Cents — that's one of the two key settings to check here.");
+    improvements.push("You got Show Cents — next time also ask about the Distribution Changes filter in the GL report.");
+  } else if (hasGeneral) {
+    diagPts = 12;
+    improvements.push("You asked about filters generally, which is a good instinct. Next time, go more specific — ask about Distribution Changes and Show Cents by name.");
+  } else {
+    diagPts = 0;
+    improvements.push("The key skill here is asking diagnostic questions about filter settings before drawing any conclusions. Specifically: are Distribution Changes included in the GL report, and is Show Cents turned on?");
+  }
+  total += diagPts;
+
+  // 3. No premature escalation (15 pts)
+  const escalateWords = ['escalate','bug','broken','system error','something wrong',
+    'our team','specialist','engineering','pas team'];
+  const didEscalate = escalateWords.some(w => first.includes(w));
+  total += didEscalate ? 0 : 15;
+  if (!didEscalate) {
+    strengths.push("You didn't jump to escalation before gathering information — that's exactly the right instinct.");
+  } else {
+    improvements.push("Avoid suggesting escalation or a system bug before you've asked any diagnostic questions. Most report mismatches are filter issues that you can resolve yourself.");
+  }
+
+  // 4. Correct categorization (15 pts)
+  const catWords = ['filter','setting','user error','not a bug','on your end','looks like',
+    'seems like','the issue is','the reason is',"that's why",'turns out'];
+  const hasCat = catWords.some(w => all.includes(w));
+  total += hasCat ? 15 : 7;
+  if (hasCat) {
+    strengths.push("You correctly identified this as a settings issue rather than a product bug — and communicated that clearly without making Jack feel bad about it.");
+  }
+
+  // 5. Clear explanation (15 pts)
+  const explainWords = ['because',"that's why",'the reason','what happened','this means',
+    'what this does','when that','so what','in other words','essentially'];
+  const hasExplain = explainWords.some(w => all.includes(w));
+  total += hasExplain ? 15 : 7;
+  if (!hasExplain && diagPts > 15) {
+    improvements.push("Once you find the root cause, take a moment to explain it in plain terms. Customers like Jack appreciate understanding why something happened, not just how to fix it.");
+  }
+
+  // 6. Tone (15 pts)
+  const condescendWords = ['you should have','you need to','obviously','clearly',
+    'just check','just look',"that's simple","that's easy","that's basic"];
+  const isRude = condescendWords.some(w => all.includes(w));
+  total += isRude ? 7 : 15;
+  if (!isRude && ackPts === 15) {
+    strengths.push("Your tone stayed calm and professional throughout — exactly what a customer who's already stressed needs.");
+  }
+
+  let summary;
+  if      (total >= 90) summary = "That was a really strong run — you demonstrated exactly the kind of calm, diagnostic support that builds customer trust.";
+  else if (total >= 80) summary = "You've got this framework down. A little more polish on the details and you'll be handling these cases with confidence every time.";
+  else if (total >= 65) summary = "You're closer than you think — the foundation is there, and one more attempt will help you lock in the diagnostic flow.";
+  else                  summary = "Every attempt builds your instincts. Focus on asking about filter settings first next time, and you'll see a big jump in your score.";
+
+  return { total, pass: total >= 80, strengths: strengths.slice(0,3), improvements: improvements.slice(0,2), summary };
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RENDER RESULT
+// ═══════════════════════════════════════════════════════════════
+function renderResult({ total, pass, strengths, improvements, summary }) {
+  const el  = document.getElementById('result');
+  const cls = pass ? 'pass' : 'fail';
+
+  const sHTML = strengths.length ? `
+    <div class="fb-section">
+      <div class="fb-heading">What you did well</div>
+      ${strengths.map(s => `<div class="fb-item"><span class="fb-icon">✓</span><span>${esc(s)}</span></div>`).join('')}
+    </div>` : '';
+
+  const iHTML = improvements.length ? `
+    <div class="fb-section">
+      <div class="fb-heading">One thing to sharpen</div>
+      ${improvements.map(i => `<div class="fb-item"><span class="fb-icon">→</span><span>${esc(i)}</span></div>`).join('')}
+    </div>` : '';
+
+  const codeOrRetry = pass ? `
+    <div class="code-box">
+      <div class="code-box-title">🎉 Simulation complete!</div>
+      <div class="code-value">JACKRESOLVED</div>
+      <div class="code-inst">Copy this code and paste it into the answer field on the next page to complete your certification.</div>
+    </div>` : `<button id="tryAgainBtn" onclick="init()">↺ Try again</button>`;
+
+  el.innerHTML = `
+    <div class="res-banner ${cls}">
+      <div>
+        <div class="res-verdict">${pass ? '✓ Pass' : '✗ Not quite — keep going!'}</div>
+        <div class="res-sub">${pass ? 'You passed with a score of ' + total + ' / 100' : 'Score of ' + total + ' — 80 needed to pass'}</div>
+      </div>
+      <div class="score-block">
+        <div class="score-num">${total}</div>
+        <div class="score-denom">/ 100</div>
+      </div>
+    </div>
+    <div class="res-body">
+      <div class="prog-wrap">
+        <div class="prog-lbl">Score: ${total} / 100</div>
+        <div class="prog-track"><div class="prog-fill ${cls}" id="pFill"></div></div>
+      </div>
+      ${sHTML}
+      ${iHTML}
+      <p class="summary-line">${esc(summary)}</p>
+      ${codeOrRetry}
+    </div>`;
+
+  el.style.display = 'block';
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      var fill = document.getElementById('pFill');
+      if (fill) fill.style.width = total + '%';
+    });
+  });
+  setTimeout(function() { el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 80);
+}
+
+function esc(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Boot ──────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
